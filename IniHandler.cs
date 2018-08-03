@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Reflection;
 
-namespace MonoUtilities
+namespace MonoUtilities.Ini
 {
     public static class MonoIni
     {
