@@ -27,6 +27,14 @@ namespace MonoUtilities.Http
             fPostParams = new List<KeyValuePair<string, string>>();
             fGetParams = new List<KeyValuePair<string, string>>();
         }
+        public MonoHttpClient(double requestTimeoutInMs, bool allowAutoRedirect = true)
+        {
+            fCookieContainer = new CookieContainer();
+            fClientHandler = new HttpClientHandler() { AllowAutoRedirect = allowAutoRedirect, CookieContainer = fCookieContainer };
+            fClient = new HttpClient(fClientHandler) { Timeout = TimeSpan.FromMilliseconds(requestTimeoutInMs) };
+            fPostParams = new List<KeyValuePair<string, string>>();
+            fGetParams = new List<KeyValuePair<string, string>>();
+        }
 
         public void AddPostParameter(string paramName, object paramValue)
         {
