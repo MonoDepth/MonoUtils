@@ -8,6 +8,15 @@ using System.Reflection;
 
 namespace MonoUtilities.Ini
 {
+    public class SectionAttribute : Attribute
+    {
+        public string Name { get; private set; }
+        public SectionAttribute(string sectionName)
+        {
+            Name = sectionName;
+        }
+    }
+
     public static class MonoIni
     {
         /***
@@ -225,15 +234,18 @@ namespace MonoUtilities.Ini
         {
             PropertyInfo[] settings = typeof(T).GetProperties(BindingFlags.Static | BindingFlags.Public);
             foreach (PropertyInfo setting in settings)
-            {
-                string[] settingInfo = setting.Name.Split('_');
-                if (settingInfo.Length != 2)
-                    continue;
-                string section = Regex.Replace(settingInfo[0], @"(?<!^)(?=[A-Z])", " ");
-                string settingName = settingInfo[1];
+            {          
+                string section = "General";
+                var attributes = setting.GetCustomAttributes(false);
+                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
+                if (sectionMapping != null)
+                {
+                    var mapsto = sectionMapping as SectionAttribute;
+                    section = mapsto.Name;
+                }
 
                 MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, settingName, setting.GetValue(null) };
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(null) };
                 object iniValue = method.Invoke(null, param);
                 setting.SetValue(null, iniValue);
             }
@@ -242,19 +254,21 @@ namespace MonoUtilities.Ini
 
         public static void SaveToIni<T>(string iniPath)
         {
-            
-            PropertyInfo[] settings = typeof(T).GetProperties();
-            
+            PropertyInfo[] settings = typeof(T).GetProperties(BindingFlags.Static | BindingFlags.Public);
+
             foreach (PropertyInfo setting in settings)
             {
-                string[] settingInfo = setting.Name.Split('_');
-                if (settingInfo.Length != 2)
-                    continue;
-                string section = Regex.Replace(settingInfo[0], @"(?<!^)(?=[A-Z])", " ");
-                string settingName = settingInfo[1];
+                string section = "General";
+                var attributes = setting.GetCustomAttributes(false);
+                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
+                if (sectionMapping != null)
+                {
+                    var mapsto = sectionMapping as SectionAttribute;
+                    section = mapsto.Name;
+                }
 
                 MethodInfo method = typeof(MonoIni).GetMethod("IniWriteGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, settingName, setting.GetValue(null) };
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(null) };
                 method.Invoke(null, param);
 
             }
