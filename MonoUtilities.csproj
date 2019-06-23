@@ -61,6 +61,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CommonConversions.cs" />
+    <Compile Include="FileHandler.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="MonoHttpClient.cs" />
     <Compile Include="IniHandler.cs" />
