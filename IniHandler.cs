@@ -16,11 +16,84 @@ namespace MonoUtilities.Ini
         }
     }
 
-    public static class MonoIni
+    public class MonoIni
     {
         /***
          * Ini reads
         ***/
+
+        public string FilePath {get; set;}
+
+        public MonoIni(string aFilePath)
+        {
+            FilePath = aFilePath;
+        }
+
+        public void LoadConfig()
+        {
+            LoadFromIni(FilePath);
+        }
+
+        public void SaveConfig()
+        {
+            SaveToIni(FilePath);
+        }
+
+        public void ResetToDefaults()
+        {
+            PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            foreach (PropertyInfo setting in settings)
+            {
+                setting.SetValue(this, setting.GetValue(null));
+            }
+        }
+
+        protected void LoadFromIni(string iniPath)
+        {
+            PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            foreach (PropertyInfo setting in settings)
+            {          
+                string section = "General";
+                var attributes = setting.GetCustomAttributes(false);
+                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
+                if (sectionMapping != null)
+                {
+                    var mapsto = sectionMapping as SectionAttribute;
+                    section = mapsto.Name;
+                }
+
+                MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(null) };
+                object iniValue = method.Invoke(null, param);
+                setting.SetValue(this, iniValue);
+            }
+
+        }
+
+        protected void SaveToIni(string iniPath)
+        {
+            PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+
+            foreach (PropertyInfo setting in settings)
+            {
+                string section = "General";
+                var attributes = setting.GetCustomAttributes(false);
+                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
+                if (sectionMapping != null)
+                {
+                    var mapsto = sectionMapping as SectionAttribute;
+                    section = mapsto.Name;
+                }
+
+                MethodInfo method = typeof(MonoIni).GetMethod("IniWriteGeneric").MakeGenericMethod(new[] { setting.PropertyType });
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(this) };
+                method.Invoke(null, param);
+
+            }
+        }
+
+        //Static methods
+
         public static string IniReadString(string path, string sectionName, string settingName, string defaultValue)
         {
             try
@@ -227,50 +300,6 @@ namespace MonoUtilities.Ini
                 Directory.CreateDirectory(path);
 
             return path;
-        }
-
-        public static void LoadFromIni<T>(string iniPath)
-        {
-            PropertyInfo[] settings = typeof(T).GetProperties(BindingFlags.Static | BindingFlags.Public);
-            foreach (PropertyInfo setting in settings)
-            {          
-                string section = "General";
-                var attributes = setting.GetCustomAttributes(false);
-                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
-                if (sectionMapping != null)
-                {
-                    var mapsto = sectionMapping as SectionAttribute;
-                    section = mapsto.Name;
-                }
-
-                MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, setting.Name, setting.GetValue(null) };
-                object iniValue = method.Invoke(null, param);
-                setting.SetValue(null, iniValue);
-            }
-
-        }
-
-        public static void SaveToIni<T>(string iniPath)
-        {
-            PropertyInfo[] settings = typeof(T).GetProperties(BindingFlags.Static | BindingFlags.Public);
-
-            foreach (PropertyInfo setting in settings)
-            {
-                string section = "General";
-                var attributes = setting.GetCustomAttributes(false);
-                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
-                if (sectionMapping != null)
-                {
-                    var mapsto = sectionMapping as SectionAttribute;
-                    section = mapsto.Name;
-                }
-
-                MethodInfo method = typeof(MonoIni).GetMethod("IniWriteGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, setting.Name, setting.GetValue(null) };
-                method.Invoke(null, param);
-
-            }
         }
     }
 }
