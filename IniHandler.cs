@@ -41,16 +41,20 @@ namespace MonoUtilities.Ini
 
         public void ResetToDefaults()
         {
-            PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            //PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            string[] constructorParams = { FilePath };
+            Type[] typeParams = { typeof(string) };
+            MonoIni ini = GetType().GetConstructor(typeParams).Invoke(constructorParams) as MonoIni;
+            PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.PropertyType.DeclaringType != typeof(MonoIni)).ToArray();
             foreach (PropertyInfo setting in settings)
             {
-                setting.SetValue(this, setting.GetValue(null));
+                setting.SetValue(this, setting.GetValue(ini));
             }
         }
 
         protected void LoadFromIni(string iniPath)
         {
-            PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.PropertyType.DeclaringType != typeof(MonoIni)).ToArray(); //BindingFlags.Public | BindingFlags.DeclaredOnly
             foreach (PropertyInfo setting in settings)
             {          
                 string section = "General";
@@ -63,7 +67,7 @@ namespace MonoUtilities.Ini
                 }
 
                 MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, setting.Name, setting.GetValue(null) };
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(this)};
                 object iniValue = method.Invoke(null, param);
                 setting.SetValue(this, iniValue);
             }
@@ -72,7 +76,8 @@ namespace MonoUtilities.Ini
 
         protected void SaveToIni(string iniPath)
         {
-            PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            //PropertyInfo[] settings = GetType().GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly);
+            PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.PropertyType.DeclaringType != typeof(MonoIni)).ToArray();
 
             foreach (PropertyInfo setting in settings)
             {
