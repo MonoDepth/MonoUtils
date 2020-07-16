@@ -9,8 +9,8 @@ namespace UtilTests
     public class IniHandlerTests
     {
         [ClassInitialize]
-        public static void Setup()
-        {
+        public static void Setup(TestContext ctx)
+        {            
             new IniTestClass("temp_unittests.ini").SaveConfig();
         }
 
@@ -36,7 +36,7 @@ namespace UtilTests
             Assert.AreEqual(1.3d, iniHandler.Double);
             Assert.AreEqual(2.5f, iniHandler.Float);
             Assert.AreEqual(3.7m, iniHandler.Decimal);
-            Assert.AreEqual("abc", iniHandler.String);
+            Assert.AreEqual("abc 123", iniHandler.String);
             Assert.AreEqual('d', iniHandler.Char);
             Assert.AreEqual(new DateTime(2000, 02, 06), iniHandler.DateTime);
             Assert.AreEqual(true, iniHandler.Boolean);
@@ -47,7 +47,7 @@ namespace UtilTests
         {
             IniTestClass iniHandler = new IniTestClass("temp_unittests.ini");
             //Add two days and save to the file
-            iniHandler.DateTime.AddDays(2);
+            iniHandler.DateTime = iniHandler.DateTime.AddDays(2);
             iniHandler.SaveConfig();
 
             //Change the date, then load it back from file to reset it
@@ -55,6 +55,28 @@ namespace UtilTests
             iniHandler.LoadConfig();
 
             Assert.AreEqual(new DateTime(2000, 02, 08), iniHandler.DateTime);
+        }
+
+        [TestMethod]
+        public void SaveToFile_ShouldOnlySavePublicProperties()
+        {
+            IniTestClass iniHandler = new IniTestClass("temp_unittests.ini");
+            iniHandler.SaveConfig();
+            iniHandler.ChangePrivates();
+            iniHandler.LoadConfig();
+
+            Assert.AreEqual(true, iniHandler.ArePrivateEmpty());
+        }
+
+        [TestMethod]
+        public void SaveToFile_ShouldNotContainBaseClassProps()
+        {
+            IniTestClass iniHandler = new IniTestClass("temp_unittests.ini");            
+            iniHandler.SaveConfig();          
+            Assert.AreEqual(true, File.Exists("temp_unittests.ini"));
+
+            string text = File.ReadAllText("temp_unittests.ini");
+            Assert.AreEqual(false, text.Contains("FilePath"));
         }
 
         [ClassCleanup]
@@ -76,11 +98,25 @@ namespace UtilTests
         public decimal Decimal { get; set; } = 3.7m;
 
         [Section("Text")]
-        public string String { get; set; } = "abc";
+        public string String { get; set; } = "abc 123";
         public char Char { get; set; } = 'd';
 
         [Section("Misc")]
         public DateTime DateTime { get; set; } = new DateTime(2000, 02, 06);
         public bool Boolean { get; set; } = true;
+
+        private string PrivateVar = "a62ef8c";
+        private string PrivateProp { get; set; } = "a62ef8c";
+
+        public void ChangePrivates()
+        {
+            PrivateVar = "";
+            PrivateProp = "";
+        }
+
+        public bool ArePrivateEmpty()
+        {
+            return (PrivateVar == "" && PrivateProp == "");
+        }
     }
 }
