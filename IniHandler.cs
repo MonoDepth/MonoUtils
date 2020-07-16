@@ -3,16 +3,102 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Reflection;
+using System.Globalization;
+using System.Threading;
 
 namespace MonoUtilities.Ini
 {
-    public static class MonoIni
+    public class SectionAttribute : Attribute
+    {
+        public string Name { get; private set; }
+        public SectionAttribute(string sectionName)
+        {
+            Name = sectionName;
+        }
+    }
+
+    public class MonoIni
     {
         /***
          * Ini reads
         ***/
+
+        public string FilePath {get; set;}
+
+        public MonoIni(string aFilePath)
+        {
+            FilePath = aFilePath;
+        }
+
+        public void LoadConfig()
+        {
+            LoadFromIni(FilePath);
+        }
+
+        public void SaveConfig()
+        {
+            SaveToIni(FilePath);
+        }
+
+        public void ResetToDefaults()
+        {            
+            string[] constructorParams = { FilePath };
+            Type[] typeParams = { typeof(string) };
+            MonoIni ini = GetType().GetConstructor(typeParams).Invoke(constructorParams) as MonoIni;
+            PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.DeclaringType != typeof(MonoIni)).ToArray();
+            foreach (PropertyInfo setting in settings)
+            {
+                setting.SetValue(this, setting.GetValue(ini));
+            }
+        }
+
+        protected void LoadFromIni(string iniPath)
+        {
+            PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.DeclaringType != typeof(MonoIni)).ToArray();
+            foreach (PropertyInfo setting in settings)
+            {          
+                string section = "General";
+                var attributes = setting.GetCustomAttributes(false);
+                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
+                if (sectionMapping != null)
+                {
+                    var mapsto = sectionMapping as SectionAttribute;
+                    section = mapsto.Name;
+                }
+
+                MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(this)};
+                object iniValue = method.Invoke(null, param);
+                setting.SetValue(this, iniValue);
+            }
+
+        }
+
+        protected void SaveToIni(string iniPath)
+        {         
+            PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.DeclaringType != typeof(MonoIni)).ToArray();
+
+            foreach (PropertyInfo setting in settings)
+            {
+                string section = "General";
+                var attributes = setting.GetCustomAttributes(false);
+                var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
+                if (sectionMapping != null)
+                {
+                    var mapsto = sectionMapping as SectionAttribute;
+                    section = mapsto.Name;
+                }
+
+                MethodInfo method = typeof(MonoIni).GetMethod("IniWriteGeneric").MakeGenericMethod(new[] { setting.PropertyType });
+                object[] param = { iniPath, section, setting.Name, setting.GetValue(this) };
+                method.Invoke(null, param);
+
+            }
+        }
+
+        //Static methods
+
         public static string IniReadString(string path, string sectionName, string settingName, string defaultValue)
         {
             try
@@ -55,6 +141,7 @@ namespace MonoUtilities.Ini
             }
         }
 
+        [Obsolete("Deprecated, please use IniReadGeneric")]
         public static float IniReadFloat(string path, string sectionName, string settingName, float defaultValue)
         {
             string _s = IniReadString(path, sectionName, settingName, "");
@@ -62,6 +149,7 @@ namespace MonoUtilities.Ini
                 return defaultValue;
             return _t;
         }
+        [Obsolete("Deprecated, please use IniReadGeneric")]
         public static int IniReadInteger(string path, string sectionName, string settingName, int defaultValue)
         {
             string _s = IniReadString(path, sectionName, settingName, "");
@@ -69,6 +157,7 @@ namespace MonoUtilities.Ini
                 return defaultValue;
             return _t;
         }
+        [Obsolete("Deprecated, please use IniReadGeneric")]
         public static double IniReadDouble(string path, string sectionName, string settingName, double defaultValue)
         {
             string _s = IniReadString(path, sectionName, settingName, "");
@@ -76,6 +165,7 @@ namespace MonoUtilities.Ini
                 return defaultValue;
             return _t;
         }
+        [Obsolete("Deprecated, please use IniReadGeneric")]
         public static decimal IniReadDecimal(string path, string sectionName, string settingName, decimal defaultValue)
         {
             string _s = IniReadString(path, sectionName, settingName, "");
@@ -83,6 +173,7 @@ namespace MonoUtilities.Ini
                 return defaultValue;
             return _t;
         }
+        [Obsolete("Deprecated, please use IniReadGeneric")]
         public static bool IniReadBool(string path, string sectionName, string settingName, bool defaultValue)
         {
             string _s = IniReadString(path, sectionName, settingName, "");
@@ -93,19 +184,28 @@ namespace MonoUtilities.Ini
 
         public static T IniReadGeneric<T>(string path, string sectionName, string settingName, T defaultValue = default(T))
         {
-            string _s = IniReadString(path, sectionName, settingName, "");
-            T _t;
-            if (_s == "")
-                return defaultValue;
+            CultureInfo orgCultureInfo = Thread.CurrentThread.CurrentCulture;
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             try
             {
-                _t = (T)Convert.ChangeType(_s, typeof(T));
+                string _s = IniReadString(path, sectionName, settingName, "");
+                T _t;
+                if (_s == "")
+                    return defaultValue;
+                try
+                {                    
+                    _t = (T)Convert.ChangeType(_s, typeof(T));
+                }
+                catch
+                {
+                    _t = defaultValue;
+                }
+                return _t;
             }
-            catch
+            finally
             {
-                _t = defaultValue;
+                Thread.CurrentThread.CurrentCulture = orgCultureInfo;
             }
-            return _t;
         }
 
 
@@ -187,29 +287,44 @@ namespace MonoUtilities.Ini
             return false;
         }
 
+        [Obsolete("Deprecated, please use IniWriteGeneric")]
         public static bool IniWriteFloat(string path, string sectionName, string settingName, float settingValue)
         {
             return IniWriteString(path, sectionName, settingName, settingValue.ToString());
         }
+        [Obsolete("Deprecated, please use IniWriteGeneric")]
         public static bool IniWriteInteger(string path, string sectionName, string settingName, int settingValue)
         {
             return IniWriteString(path, sectionName, settingName, settingValue.ToString());
         }
+        [Obsolete("Deprecated, please use IniWriteGeneric")]
         public static bool IniWriteDouble(string path, string sectionName, string settingName, double settingValue)
         {
             return IniWriteString(path, sectionName, settingName, settingValue.ToString());
         }
+        [Obsolete("Deprecated, please use IniWriteGeneric")]
         public static bool IniWriteDecimal(string path, string sectionName, string settingName, decimal settingValue)
         {
             return IniWriteString(path, sectionName, settingName, settingValue.ToString());
         }
+        [Obsolete("Deprecated, please use IniWriteGeneric")]
         public static bool IniWriteBool(string path, string sectionName, string settingName, bool settingValue)
         {
             return IniWriteString(path, sectionName, settingName, settingValue.ToString());
-        }
+        }        
         public static bool IniWriteGeneric<T>(string path, string sectionName, string settingName, T settingValue)
         {
-            return IniWriteString(path, sectionName, settingName, settingValue.ToString());
+            CultureInfo orgCultureInfo = Thread.CurrentThread.CurrentCulture;
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            try
+            {
+                bool success = IniWriteString(path, sectionName, settingName, settingValue.ToString());
+                return success;
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = orgCultureInfo;
+            }
         }
 
         public static string GetOrCreateProgramAppdataFolder(string programName)
@@ -219,45 +334,6 @@ namespace MonoUtilities.Ini
                 Directory.CreateDirectory(path);
 
             return path;
-        }
-
-        public static void LoadFromIni<T>(string iniPath)
-        {
-            PropertyInfo[] settings = typeof(T).GetProperties(BindingFlags.Static | BindingFlags.Public);
-            foreach (PropertyInfo setting in settings)
-            {
-                string[] settingInfo = setting.Name.Split('_');
-                if (settingInfo.Length != 2)
-                    continue;
-                string section = Regex.Replace(settingInfo[0], @"(?<!^)(?=[A-Z])", " ");
-                string settingName = settingInfo[1];
-
-                MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, settingName, setting.GetValue(null) };
-                object iniValue = method.Invoke(null, param);
-                setting.SetValue(null, iniValue);
-            }
-
-        }
-
-        public static void SaveToIni<T>(string iniPath)
-        {
-            
-            PropertyInfo[] settings = typeof(T).GetProperties();
-            
-            foreach (PropertyInfo setting in settings)
-            {
-                string[] settingInfo = setting.Name.Split('_');
-                if (settingInfo.Length != 2)
-                    continue;
-                string section = Regex.Replace(settingInfo[0], @"(?<!^)(?=[A-Z])", " ");
-                string settingName = settingInfo[1];
-
-                MethodInfo method = typeof(MonoIni).GetMethod("IniWriteGeneric").MakeGenericMethod(new[] { setting.PropertyType });
-                object[] param = { iniPath, section, settingName, setting.GetValue(null) };
-                method.Invoke(null, param);
-
-            }
         }
     }
 }

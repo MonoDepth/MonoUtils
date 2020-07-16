@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace MonoUtilities.Http
@@ -23,7 +22,8 @@ namespace MonoUtilities.Http
         {
             fCookieContainer = new CookieContainer();
             fClientHandler = new HttpClientHandler() {AllowAutoRedirect = allowAutoRedirect, CookieContainer = fCookieContainer};
-            fClient = new HttpClient(fClientHandler) { Timeout = requestTimeout};
+            fClient = new HttpClient(fClientHandler) { Timeout = requestTimeout};    
+            fClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36");
             fPostParams = new List<KeyValuePair<string, string>>();
             fGetParams = new List<KeyValuePair<string, string>>();
         }
@@ -32,6 +32,7 @@ namespace MonoUtilities.Http
             fCookieContainer = new CookieContainer();
             fClientHandler = new HttpClientHandler() { AllowAutoRedirect = allowAutoRedirect, CookieContainer = fCookieContainer };
             fClient = new HttpClient(fClientHandler) { Timeout = TimeSpan.FromMilliseconds(requestTimeoutInMs) };
+            fClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36");
             fPostParams = new List<KeyValuePair<string, string>>();
             fGetParams = new List<KeyValuePair<string, string>>();
         }
