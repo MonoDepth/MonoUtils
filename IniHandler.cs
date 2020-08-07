@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Reflection;
-using System.Globalization;
-using System.Threading;
 
 namespace MonoUtilities.Ini
 {
@@ -25,6 +23,7 @@ namespace MonoUtilities.Ini
         ***/
 
         public string FilePath {get; set;}
+        private string lastSection = "General";
 
         public MonoIni(string aFilePath)
         {
@@ -42,7 +41,7 @@ namespace MonoUtilities.Ini
         }
 
         public void ResetToDefaults()
-        {            
+        {
             string[] constructorParams = { FilePath };
             Type[] typeParams = { typeof(string) };
             MonoIni ini = GetType().GetConstructor(typeParams).Invoke(constructorParams) as MonoIni;
@@ -58,13 +57,14 @@ namespace MonoUtilities.Ini
             PropertyInfo[] settings = GetType().GetProperties().Where(prop => prop.PropertyType.IsPublic && prop.DeclaringType != typeof(MonoIni)).ToArray();
             foreach (PropertyInfo setting in settings)
             {          
-                string section = "General";
+                string section = lastSection;
                 var attributes = setting.GetCustomAttributes(false);
                 var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
                 if (sectionMapping != null)
                 {
                     var mapsto = sectionMapping as SectionAttribute;
                     section = mapsto.Name;
+                    lastSection = section;
                 }
 
                 MethodInfo method = typeof(MonoIni).GetMethod("IniReadGeneric").MakeGenericMethod(new[] { setting.PropertyType });
@@ -81,13 +81,14 @@ namespace MonoUtilities.Ini
 
             foreach (PropertyInfo setting in settings)
             {
-                string section = "General";
+                string section = lastSection;
                 var attributes = setting.GetCustomAttributes(false);
                 var sectionMapping = attributes.FirstOrDefault(a => a.GetType() == typeof(SectionAttribute));
                 if (sectionMapping != null)
                 {
                     var mapsto = sectionMapping as SectionAttribute;
                     section = mapsto.Name;
+                    lastSection = section;
                 }
 
                 MethodInfo method = typeof(MonoIni).GetMethod("IniWriteGeneric").MakeGenericMethod(new[] { setting.PropertyType });
