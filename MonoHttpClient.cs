@@ -72,12 +72,12 @@ namespace MonoUtilities.Http
 
         public async Task<HttpResponseMessage> GetAsync(string url, bool clearParamsAfterResponse = true)
         {
-            for (int i = 0; i > fGetParams.Count; i++)
+            for (int i = 0; i < fGetParams.Count; i++)
             {
                 if (i == 0)
                     url += "?";
                 url += fGetParams[i].Key + "=" + fGetParams[i].Value;
-                if (i + 1 > fGetParams.Count)
+                if (i + 1 < fGetParams.Count)
                     url += "&";
             }
             HttpResponseMessage result = await fClient.GetAsync(url);
